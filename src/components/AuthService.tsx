@@ -1,13 +1,14 @@
+//normally use API endpoint to validate user creds
 const loginAction = async (creds: {
     username: string;
     password: string;
-}): Promise<void> => {
+}): Promise<string> => {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
         if (creds.username === "test" && creds.password === "test") {
-            resolve();
+            resolve("Login Success");
         } else {
-            reject();
+            reject("Incorrect Credentials");
         }
         }, 1000);
     });

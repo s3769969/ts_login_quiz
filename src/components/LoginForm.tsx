@@ -1,52 +1,9 @@
 import React, { useState } from 'react'
 import type { RootState } from '../store'
 import { useSelector, useDispatch } from 'react-redux'
-import { loginAction, errorAction, LoginState } from './LoginSlice'
+import { loginAction, errorAction, LoginState, update } from './LoginSlice'
 import { Navigate } from 'react-router-dom';
 import AuthService from './AuthService';
-
-type LoginAction =
-  | { type: "login" | "success" | "error" | "logout" }
-  | { type: "field"; fieldName: string; payload: string };
-
-const loginReducer = (state: LoginState, action: LoginAction): LoginState => {
-  switch (action.type) {
-    case "field": {
-      return {
-        ...state,
-        [action.fieldName]: action.payload
-      };
-    }
-    case "login": {
-      return {
-        ...state,
-        error: "",
-        isLoading: true
-      };
-    }
-    case "success": {
-      return { ...state, error: "", isLoading: false, isLoggedIn: true };
-    }
-    case "error": {
-      return {
-        ...state,
-        isLoading: false,
-        isLoggedIn: false,
-        username: "",
-        password: "",
-        error: "Incorrect username or password!"
-      };
-    }
-    case "logout": {
-      return {
-        ...state,
-        isLoggedIn: false
-      };
-    }
-    default:
-      return state;
-  }
-};
 
 export default function LoginForm() {
     const isLoggedIn = useSelector((state: RootState) => state.authentication.isLoggedIn)
@@ -55,7 +12,7 @@ export default function LoginForm() {
       {username:"",
       password:"", 
       isLoading:false, 
-      isLoggedIn, 
+      isLoggedIn:isLoggedIn, 
       error:""});
     
     //handle state changes on form inputs
@@ -68,14 +25,15 @@ export default function LoginForm() {
     }
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      console.log(e)
       try {
         await AuthService.loginAction({ username:state.username, password:state.password })
-        .then(()=>
-        {dispatch(loginAction())}
-        );
+        dispatch(loginAction())
+        //can use line below if wanting to keep user creds in redux store
+        // dispatch(update({...state, isLoggedIn:true}))
       } catch (error) {
-        dispatch(errorAction("login failed"));
+        //use line below if redux store needs to hold error
+        // dispatch(errorAction("Login Failed. Invalid credentials"));
+        setState({...state, error:"Login Failed! Invalid credentials"});
       }
     };
   

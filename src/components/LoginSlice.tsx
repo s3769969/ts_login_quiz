@@ -17,22 +17,27 @@ export const initialState: LoginState = {
     isLoggedIn: false
 };
 
-export type LoginAction =
-{ type: "login" | "success" | "error" | "logout" }
-| { type: "field"; fieldName: string; payload: string };
-
 export const loginSlice = createSlice({
     name: 'authentication',
     initialState,
     reducers: {
+        "update": (state, action:PayloadAction<LoginState>) => {
+            state.username = action.payload.username;
+            state.password = action.payload.password; 
+            state.isLoading = action.payload.isLoading; 
+            state.isLoggedIn = action.payload.isLoggedIn; 
+            state.error = action.payload.error;
+        },
         "loginAction": (state) => {
-            state.isLoggedIn = true
+            state.isLoggedIn = true;
+            state.error = "";
         },
         "logoutAction": (state) => {
-            state.isLoggedIn = false
+            state.isLoggedIn = false;
+            state.error = "";
         },
         "errorAction": (state, action:PayloadAction<string>) => {
-            state.error = action.payload
+            state.error = action.payload;
          },
          "stateAction": (state) => {
             console.log(current(state));
@@ -40,6 +45,6 @@ export const loginSlice = createSlice({
     },
   })
   
-export const { loginAction, logoutAction, errorAction, stateAction } = loginSlice.actions
+export const { loginAction, logoutAction, errorAction, stateAction, update } = loginSlice.actions
   
 export default loginSlice.reducer

@@ -4,13 +4,13 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { RootState } from "../store";
 import "./../styles.css";
 import { fetchQuizData, QuestionExt, Difficulty } from "./API";
-import { logoutAction, stateAction } from "./LoginSlice";
+import { logoutAction } from "./LoginSlice";
 import { AnswerType, QuestionCard} from "./QuizQuestionCard";
 
 //properties of quizstate
 interface QuizState {
     isStarted: boolean;
-    isLoaded: boolean;
+    isLoading: boolean;
     qNumber: number;
     qCount: number;
     questions: QuestionExt[];
@@ -22,7 +22,7 @@ interface QuizState {
 
 const initialState: QuizState = {
     isStarted: false,
-    isLoaded: false,
+    isLoading: false,
     qNumber: 0,
     qCount: 0,
     questions: [],
@@ -34,7 +34,7 @@ const initialState: QuizState = {
 
 //define action for quiz
 type QuizAction =
-  | { type: "start" | "restart" | "error"}
+  | { type: "start" | "restart" | "loading" | "loaded"}
   | { type: "field"; fieldName: string; payload: any }
   | { type: "updateAnswer"; fieldName: string; index: number; payload: AnswerType };
 
@@ -42,13 +42,11 @@ type QuizAction =
 const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
     switch (action.type) {
       case "field": {
-        console.log(action)
         return {
           ...state,
           [action.fieldName]: action.payload
         };
       }case "updateAnswer": {
-        console.log(action)
         const newAnswers = [...state.userAnswers]; 
         newAnswers[action.index] = action.payload
         //scoring logic
@@ -73,17 +71,27 @@ const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
           userAnswers: newAnswers
         };
       }
+      case "loading": {
+        return {
+          ...state,
+          isLoading: true
+        };
+      }
+      case "loaded": {
+        return {
+          ...state,
+          isLoading: false
+        };
+      }
       case "start": {
         return {
           ...state,
-          isLoaded: true,
           isStarted: true
         };
       }
       case "restart": {
         return {
           ...state,
-          isLoaded: false,
           isStarted: false,
           qNumber: 0,
           qCount: 0,
@@ -92,13 +100,6 @@ const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
           score: 0,
           completed: false,
           results: false
-        };
-      }
-      case "error": {
-        return {
-          ...state,
-          isLoaded: false,
-          isStarted: false
         };
       }
       default:
@@ -110,7 +111,7 @@ const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
 function Quiz() {  
     const isLoggedIn = useSelector((state: RootState) => state.authentication.isLoggedIn)
     const [state, dispatch] = React.useReducer(quizReducer, initialState);
-    const { isStarted, questions, userAnswers, qNumber, qCount, isLoaded, score, completed, results} = state;    
+    const { isStarted, questions, userAnswers, qNumber, qCount, isLoading, score, completed, results} = state;    
     const dispatch2 = useDispatch()
 
     //update result state to true
@@ -123,30 +124,32 @@ function Quiz() {
             payload: true
           })
         } catch (error) {
-            dispatch({ type: "error" });
+            dispatch({ type: "field",
+            fieldName: "error",
+            payload: true
+          });
         }
     };
 
     //revert all quizstate to default values
     const onRestart = async (e: React.FormEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      const res = await fetchQuizData(10, Difficulty.HARD);
-      console.log(res)
-      console.log(state)      
+      e.preventDefault();     
       try {
-          dispatch({ type: "restart" });     
+          dispatch({ type: "restart" });    
       } catch (error) {
-          dispatch({ type: "error" });
+          dispatch({ type: "field",
+          fieldName: "error",
+          payload: true
+        });;
       }
   };
 
   //fetch quiz data and update total question count in state
   const onStart = async (e: React.FormEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      const res = await fetchQuizData(10, Difficulty.HARD);
-      console.log(res)
-      console.log(state)      
+      e.preventDefault();    
       try {
+          dispatch({ type: "loading" });
+          const res = await fetchQuizData(10, Difficulty.HARD);
           dispatch({
             type: "field",
             fieldName: "questions",
@@ -157,16 +160,19 @@ function Quiz() {
             fieldName: "qCount",
             payload: res.length
           })
-          dispatch({ type: "start" });          
+          dispatch({ type: "start" });
+          dispatch({ type: "loaded" });        
       } catch (error) {
-          dispatch({ type: "error" });
+          dispatch({ type: "field",
+          fieldName: "error",
+          payload: true
+        });;
       }
   };
 
   //update qNumber in state to 1 index lower until when at 0
   const prev = (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    console.log(state)
     try {        
       dispatch({
         type: "field",
@@ -174,14 +180,16 @@ function Quiz() {
         payload: (qNumber > 0) ? qNumber - 1 : qNumber
       })
     } catch (error) {
-        dispatch({ type: "error" });
+        dispatch({ type: "field",
+        fieldName: "error",
+        payload: true
+      });;
     }
   };
 
   //update qNumber in state to 1 index higher until when at qCount-1
   const next = (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    console.log(state)
     try {
       dispatch({
         type: "field",
@@ -189,7 +197,10 @@ function Quiz() {
         payload: (qNumber < qCount-1) ? qNumber + 1 : qNumber
       })
     } catch (error) {
-        dispatch({ type: "error" });
+        dispatch({ type: "field",
+        fieldName: "error",
+        payload: true
+      });;
     }
   };
 
@@ -197,8 +208,6 @@ function Quiz() {
   //method will also update score state if changes occur
   const updateAnswer = (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    console.log(e.target)
-    console.log(state)
     let a = e.currentTarget.value;
     let ca = questions[qNumber].correct_answer;
     let q = questions[qNumber].question;
@@ -218,7 +227,10 @@ function Quiz() {
         payload: answerObject
       })
   } catch (error) {
-      dispatch({ type: "error" });
+      dispatch({ type: "field",
+      fieldName: "error",
+      payload: true
+    });;
   }
   };
 
@@ -271,7 +283,7 @@ function Quiz() {
           </div> 
         ) : (
           <div>
-            <button onClick={onStart}>Start Quiz</button>
+            <button onClick={onStart} disabled={!!state.isLoading}>Start Quiz</button>
           </div>                  
        )}
       </div>
